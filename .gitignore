@@ -1,0 +1,19 @@
+# ----- Documentos generados (no son codigo) -----
+Docx/
+generador/salida/
+
+# ----- Secretos y config local -----
+generador/.config_ia.json
+
+# ----- Material de curso (copyright) -----
+*.pdf
+
+# ----- Python -----
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ----- Accesos directos Windows y basura del SO -----
+*.lnk
+Thumbs.db
+Desktop.ini
