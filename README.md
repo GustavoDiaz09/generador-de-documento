@@ -40,7 +40,7 @@ En Windows puedes dar doble clic a **`Iniciar_Silencioso.vbs`** (no abre ventana
 
 Flujo típico:
 
-1. **Pestaña 1 — Módulo**: selecciona el PDF (`Modulo N.pdf`). La unidad se deduce del nombre y se corrige a mano si hace falta. Pulsa *Extraer texto*.
+1. **Pestaña 1 — Módulo**: selecciona el PDF (`Modulo N.pdf`). La unidad se deduce del nombre y se corrige a mano si hace falta; también puedes cambiar la **materia** (se refleja en el título del documento y en el nombre del archivo). Pulsa *Extraer texto*.
 2. **Pestaña 2 — Revisar contenido**: pulsa *Redactar con IA* (necesita clave configurada) o escribe el formulario a mano (descripción, palabras clave, objetivos, conceptos, resumen, conclusiones, bibliografía). Guarda/carga en JSON si quieres.
 3. **Pestaña 3 — Generar**: configura el proveedor y clave, y pulsa *Generar protocolo (DOCX)*. El resultado aparece en `generador/salida/`.
 

@@ -314,6 +314,14 @@ class App(tk.Tk):
         ttk.Spinbox(fila2, from_=1, to=30, textvariable=self.unidad, width=5).pack(side="left", padx=4)
         ttk.Label(fila2, text="(se deduce del nombre 'Modulo N.pdf'; puedes cambiarlo)", foreground="#777").pack(side="left")
 
+        fila3 = ttk.Frame(tab)
+        fila3.pack(fill="x", pady=(0, 8))
+        ttk.Label(fila3, text="Materia:").pack(side="left")
+        self.materia = tk.StringVar(value=protocol_builder.MATERIA_POR_DEFECTO)
+        ttk.Entry(fila3, textvariable=self.materia).pack(side="left", fill="x", expand=True, padx=4)
+        ttk.Label(fila3, text="(aparece en el título del documento y en el nombre del archivo)",
+                  foreground="#777").pack(side="left")
+
         self.btn_extraer = ttk.Button(tab, text="Extraer texto del módulo", command=self._extraer_texto)
         self.btn_extraer.pack(anchor="w", pady=(0, 6))
 
@@ -479,6 +487,7 @@ class App(tk.Tk):
 
     def _run_ia(self):
         unidad = self.unidad.get()
+        materia = self.materia.get().strip() or protocol_builder.MATERIA_POR_DEFECTO
         texto = self.texto_modulo
         biblio = pdf_utils.extraer_bibliografia(texto)
         proveedor = self.proveedor.get()
@@ -492,6 +501,7 @@ class App(tk.Tk):
                 clave=self.clave.get() or None,
                 base_url=self.base_url.get().strip() or None,
                 path_plantilla=str(PLANTILLA),
+                materia=materia,
                 progreso=lambda m: self.cola.put(("log", m)),
             )
         except ia_client.ErrorSinClave as e:
@@ -517,13 +527,15 @@ class App(tk.Tk):
 
     def _run_generar(self, contenido):
         unidad = self.unidad.get()
-        salida = SALIDA / f"Protocolo Individual - {unidad}° Unidad - Diseño De Sitio Web - {NOMBRE_ESTUDIANTE}.docx"
+        materia = self.materia.get().strip() or protocol_builder.MATERIA_POR_DEFECTO
+        nombre = f"Protocolo Individual - {unidad}° Unidad - {materia} - {NOMBRE_ESTUDIANTE}.docx"
+        salida = SALIDA / self._nombre_seguro(nombre)
         try:
-            self.cola.put(("log", f"Ensamblando DOCX (unidad {unidad})…"))
-            ruta = protocol_builder.build_protocol(str(PLANTILLA), contenido, str(salida), unidad)
+            self.cola.put(("log", f"Ensamblando DOCX (unidad {unidad}, {materia})…"))
+            ruta = protocol_builder.build_protocol(str(PLANTILLA), contenido, str(salida), unidad, materia)
             self.cola.put(("log", f"DOCX generado: {Path(ruta).name}"))
             self.cola.put(("log", "Verificando formato…"))
-            errores = verificador.verificar(ruta)
+            errores = verificador.verificar(ruta, materia=materia)
             if errores:
                 for e in errores:
                     self.cola.put(("log_err", "  - " + e))
@@ -603,6 +615,11 @@ class App(tk.Tk):
         import os
         SALIDA.mkdir(exist_ok=True)
         os.startfile(str(SALIDA))
+
+    def _nombre_seguro(self, nombre: str) -> str:
+        import re
+        nombre = re.sub(r'[\\/:*?"<>|]', " ", nombre).strip()
+        return nombre or "Protocolo.docx"
 
     def _guardar_config_si_pide(self):
         if getattr(self, "recordar", None) and self.recordar.get():

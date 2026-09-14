@@ -29,6 +29,8 @@ FILAS = {
     8: "BIBLIOGRAFIA",
 }
 
+MATERIA_POR_DEFECTO = "Diseño De Sitio Web"
+
 _W_T = qn("w:t")
 _W_R = qn("w:r")
 _W_P = qn("w:p")
@@ -180,6 +182,15 @@ def _cambiar_unidad(nueva_celda, unidad: int) -> None:
                 return
 
 
+def _cambiar_materia(nueva_celda, materia: str) -> None:
+    """Fila 0: reemplaza el nombre de la asignatura en el bloque de titulo."""
+    objetivo = materia.strip() or MATERIA_POR_DEFECTO
+    for p in _ps(nueva_celda):
+        if _parrafo_texto(p).strip().lower() == MATERIA_POR_DEFECTO.lower():
+            _set_parrafo_texto(p, objetivo)
+            return
+
+
 def validar_contenido(contenido: dict) -> None:
     """Valida el esquema minimo antes de ensamblar. Lanza ValueError."""
     obligatorias = [
@@ -197,7 +208,8 @@ def validar_contenido(contenido: dict) -> None:
         raise ValueError("'resumen' debe ser una lista no vacia.")
 
 
-def build_protocol(plantilla: str, contenido: dict, salida: str, unidad: int) -> str:
+def build_protocol(plantilla: str, contenido: dict, salida: str, unidad: int,
+                   materia: str = MATERIA_POR_DEFECTO) -> str:
     """Genera el DOCX final sobre una copia de la plantilla."""
     plantilla = Path(plantilla)
     salida = Path(salida)
@@ -216,6 +228,7 @@ def build_protocol(plantilla: str, contenido: dict, salida: str, unidad: int) ->
         return tabla.rows[n].cells[0]._tc
 
     _cambiar_unidad(celda(0), unidad)
+    _cambiar_materia(celda(0), materia)
 
     _rellenar(celda(1), _normaliza(FILAS[1]), contenido["descripcion"], "texto")
     _rellenar(celda(2), _normaliza(FILAS[2]), contenido["palabras_claves"], "texto")

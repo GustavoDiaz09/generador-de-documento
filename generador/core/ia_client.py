@@ -122,7 +122,7 @@ def _texto_plantilla_referencia(path_plantilla: str) -> str:
         return ""
 
 
-def _prompt_sistema(path_plantilla: str) -> str:
+def _prompt_sistema(path_plantilla: str, materia: str = "Diseño De Sitio Web") -> str:
     referencia = _texto_plantilla_referencia(path_plantilla)
     ref_bloque = (
         "\n\nProtocolo de la 1a Unidad (muestra de tono, estructura y "
@@ -132,7 +132,7 @@ def _prompt_sistema(path_plantilla: str) -> str:
     )
     return (
         "Eres un redactor academico universitario en espanol, encargado de "
-        "redactar Protocolos Individuales de la asignatura Diseño De Sitio Web. "
+        f"redactar Protocolos Individuales de la asignatura {materia}. "
         "Reglas: redacta parrafos fluidos de 90-180 palabras; usa la "
         "terminologia exacta del modulo; NO inventes datos ni temas que no "
         "aparezcan en el texto recibido; la 'descripcion' debe comenzar "
@@ -221,11 +221,12 @@ def validar_esquema(contenido: dict) -> list[str]:
 
 def _llamar(client: OpenAI, modelo: str, texto: str, biblio: list[str],
             unidad: int, path_plantilla: str, json_mode: bool = True,
-            max_tokens: int = 8192, feedback: str = "") -> str:
+            max_tokens: int = 8192, feedback: str = "",
+            materia: str = "Diseño De Sitio Web") -> str:
     kwargs = dict(
         model=modelo,
         messages=[
-            {"role": "system", "content": _prompt_sistema(path_plantilla)},
+            {"role": "system", "content": _prompt_sistema(path_plantilla, materia)},
             {"role": "user", "content": _prompt_usuario(texto, unidad, biblio, feedback)},
         ],
         temperature=0.3,
@@ -241,7 +242,8 @@ def _llamar(client: OpenAI, modelo: str, texto: str, biblio: list[str],
             # algunos proveedores gratuitos rechazan response_format
             return _llamar(client, modelo, texto, biblio, unidad,
                            path_plantilla, json_mode=False,
-                           max_tokens=max_tokens, feedback=feedback)
+                           max_tokens=max_tokens, feedback=feedback,
+                           materia=materia)
         raise e
 
 
@@ -255,6 +257,7 @@ def redactar_contenido(
     clave: str | None = None,
     base_url: str | None = None,
     path_plantilla: str = "",
+    materia: str = "Diseño De Sitio Web",
     progreso: PROGRESO | None = None,
 ) -> dict:
     """Redacta el JSON del protocolo con la IA y lo valida/ajusta.
@@ -292,7 +295,7 @@ def redactar_contenido(
                 progreso(f"Llamando a la IA ({modelo})...")
             contenido_raw = _llamar(client, modelo, texto, biblio, unidad,
                                     path_plantilla, max_tokens=tokens,
-                                    feedback=feedback_json)
+                                    feedback=feedback_json, materia=materia)
         except Exception as e:
             status = getattr(e, "status_code", None) or getattr(
                 e, "status", None)

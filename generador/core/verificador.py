@@ -7,7 +7,7 @@ from docx import Document
 from docx.oxml.ns import qn
 
 
-def verificar(archivo: str) -> list[str]:
+def verificar(archivo: str, materia: str | None = None) -> list[str]:
     """Devuelve una lista de errores; vacia = todo correcto."""
     errores = []
     ruta = Path(archivo)
@@ -38,10 +38,12 @@ def verificar(archivo: str) -> list[str]:
         if not contenido:
             errores.append(f"Fila {i} ({titulo}): sin contenido.")
 
-    # Fila 0: bloque de titulo (unidad presente)
+    # Fila 0: bloque de titulo (unidad y materia presentes)
     titulo_bloque = "".join(p.text for p in tabla.rows[0].cells[0].paragraphs)
     if "Unidad" not in titulo_bloque and "°" not in titulo_bloque:
         errores.append("Fila 0: no se encontro la unidad en el bloque de titulo.")
+    if materia and materia.strip().lower() not in titulo_bloque.lower():
+        errores.append("Fila 0: no se encontro la materia en el bloque de titulo.")
 
     # OBJETIVOS debe conservar numeracion numId=7
     objetivos = tabla.rows[3].cells[0]._tc.findall(qn("w:p"))
