@@ -2,6 +2,8 @@
 
 ![Icono](generador/assets/iapp.png)
 
+![Interfaz](docs/screenshot.png)
+
 Herramienta con interfaz gráfica (Tkinter) que **convierte un PDF de lectura en un documento DOCX con formato idéntico a una plantilla**: extrae el texto del PDF, lo redacta con una IA (o a mano), y lo ensambla clonando fila por fila la plantilla original — así el resultado mantiene tipografía, estilos y numeración exactos.
 
 Pensado inicialmente para *Protocolos Individuales* universitarios, pero **se adapta a cualquier tipo de documento** (informes, resúmenes, monografías…) cambiando la plantilla — ver [la guía](#guia-hacer-cualquier-tipo-de-documento).
@@ -142,3 +144,7 @@ Prouni/
 
 - El repositorio **no incluye** ni tus claves de API, ni los PDFs de módulos (material del curso), ni los DOCX generados.
 - Icono regenerable: `python generador/assets/crear_icono.py`.
+
+## Licencia
+
+[MIT](LICENSE)
