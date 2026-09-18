@@ -430,9 +430,11 @@ class App(tk.Tk):
         ttk.Label(g, text="Modelo:").grid(row=0, column=2, sticky="w")
         self.modelo = tk.StringVar(value=self._config.get("modelo", ""))
         ttk.Entry(g, textvariable=self.modelo, width=20).grid(row=0, column=3, sticky="w", padx=6)
-        ttk.Label(g, text="Clave API:").grid(row=0, column=4, sticky="w")
+        ttk.Button(g, text="Ver modelos", width=12, command=self._ver_modelos).grid(
+            row=0, column=4, sticky="w", padx=6)
+        ttk.Label(g, text="Clave API:").grid(row=0, column=5, sticky="w")
         self.clave = tk.StringVar(value=self._config.get("clave", ""))
-        ttk.Entry(g, textvariable=self.clave, width=20, show="*").grid(row=0, column=5, sticky="w", padx=6)
+        ttk.Entry(g, textvariable=self.clave, width=20, show="*").grid(row=0, column=6, sticky="w", padx=6)
 
         ttk.Label(g, text="URL base (solo 'personalizado'):").grid(row=1, column=0, sticky="w", pady=(6, 0))
         self.base_url = tk.StringVar(value=self._config.get("base_url", ""))
@@ -513,6 +515,53 @@ class App(tk.Tk):
             self.cola.put(("error", f"Error de IA: {e}"))
             return
         self.cola.put(("contenido", contenido))
+
+    def _ver_modelos(self):
+        self._estado("Consultando modelos disponibles…")
+        self._async(self._run_modelos, self.proveedor.get(),
+                    self.clave.get(), self.base_url.get().strip() or None)
+
+    def _run_modelos(self, proveedor, clave, base_url):
+        if proveedor == "personalizado":
+            proveedor = None
+        try:
+            nombres = ia_client.lista_modelos(
+                proveedor if proveedor != "auto" else None,
+                clave=clave or None,
+                base_url=base_url)
+            self.cola.put(("modelos", nombres))
+        except Exception as e:
+            self.cola.put(("modelos_error", f"Error al listar modelos: {e}"))
+
+    def _mostrar_modelos(self, nombres):
+        win = tk.Toplevel(self)
+        win.title("Modelos disponibles")
+        win.transient(self.winfo_toplevel())
+        win.grab_set()
+        ttk.Label(win, text=f"{len(nombres)} modelos disponibles. "
+                            "Selecciona uno o cierra:").pack(anchor="w", padx=8, pady=(8, 4))
+        frame = ttk.Frame(win)
+        frame.pack(fill="both", expand=True, padx=8)
+        lista = tk.Listbox(frame, width=60, height=15, font=("Consolas", 10))
+        barra = ttk.Scrollbar(frame, orient="vertical", command=lista.yview)
+        lista.configure(yscrollcommand=barra.set)
+        lista.pack(side="left", fill="both", expand=True)
+        barra.pack(side="right", fill="y")
+        for nombre in nombres:
+            lista.insert("end", nombre)
+
+        def usar():
+            sel = lista.curselection()
+            if sel:
+                self.modelo.set(lista.get(sel[0]))
+                self._guardar_config_si_pide()
+                win.destroy()
+
+        botones = ttk.Frame(win)
+        botones.pack(fill="x", padx=8, pady=(4, 8))
+        ttk.Button(botones, text="Usar este modelo", command=usar).pack(side="left")
+        ttk.Button(botones, text="Cerrar", command=win.destroy).pack(side="left", padx=6)
+        lista.bind("<Double-1>", lambda _e: usar())
 
     def _generar(self):
         try:
@@ -657,6 +706,12 @@ class App(tk.Tk):
                     self.btn_ia.configure(state="normal")
                     self._log("Contenido redactado y cargado en la pestaña 2. Revísalo antes de generar.",
                               "ok")
+                elif etiqueta == "modelos":
+                    self._mostrar_modelos(evento[1])
+                    self._estado("Listo.")
+                elif etiqueta == "modelos_error":
+                    self._estado("Error.")
+                    messagebox.showerror("Modelos", evento[1])
                 elif etiqueta == "falta_clave":
                     self.btn_ia.configure(state="normal")
                     self._estado("Sin clave de API.")

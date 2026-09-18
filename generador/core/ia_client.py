@@ -99,6 +99,60 @@ def resolver_credenciales(
     return clave, base, modelo_final
 
 
+def lista_modelos(
+    proveedor: str | None = None,
+    *,
+    clave: str | None = None,
+    base_url: str | None = None,
+) -> list[str]:
+    """Lista los modelos disponibles del proveedor (endpoint /models).
+
+    Compatible con OpenAI, OpenRouter, Groq y Gemini. Para Gemini usa su
+    capa compatible con OpenAI; si esta falla, cae al endpoint nativo de
+    Google. Lanza ErrorSinClave si no hay clave.
+    """
+    clave_env, base, _ = resolver_credenciales(proveedor, base_url=base_url)
+    clave = clave or clave_env
+    base = base_url or base
+    if not clave:
+        raise ErrorSinClave(
+            "No hay clave de API configurada para listar los modelos. "
+            "Pega tu clave en la pestaña 3."
+        )
+    try:
+        client = OpenAI(api_key=clave, base_url=base)
+        return sorted(m.id for m in client.models.list())
+    except Exception as e:
+        if _proveedor_por_url(base) == "google":
+            return _lista_modelos_google(clave)
+        raise e
+
+
+def _lista_modelos_google(clave: str) -> list[str]:
+    """Lista modelos de Gemini con el endpoint nativo de Google."""
+    import json
+    import urllib.request
+
+    nombres: list[str] = []
+    for _intento in range(3):
+        try:
+            url = ("https://generativelanguage.googleapis.com/v1beta/models"
+                   f"?key={clave}")
+            with urllib.request.urlopen(url, timeout=30) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            for m in data.get("models", []):
+                nombre = m.get("name", "")
+                if nombre:
+                    nombres.append(nombre.split("/")[-1])
+            return sorted(nombres)
+        except Exception:
+            if _intento < 2:
+                time.sleep(2 ** _intento)
+            else:
+                raise
+    return sorted(nombres)
+
+
 def _extract_campos(p: dict) -> str:
     return ", ".join(sorted(k for k in p if p[k] not in (None, "", [], {})))
 
