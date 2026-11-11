@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="es" data-tema="claro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Generador de Protocolos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="marca">
+      <span class="monograma" aria-hidden="true">P</span>
+      <div>
+        <h1>Generador de Protocolos</h1>
+        <p>Módulo PDF &rarr; redacción &rarr; DOCX idéntico a la plantilla</p>
+      </div>
+    </div>
+    <button id="btn-tema" class="btn btn-ghost" type="button">Modo oscuro</button>
+  </header>
+  <div class="franja" aria-hidden="true"><span class="franja-violeta"></span><span class="franja-celeste"></span></div>
+
+  <nav class="pasos" aria-label="Pasos">
+    <button class="paso activo" type="button" data-paso="1" aria-current="step">
+      <span class="paso-num">1</span><span>Módulo</span>
+    </button>
+    <button class="paso" type="button" data-paso="2">
+      <span class="paso-num">2</span><span>Contenido</span>
+    </button>
+    <button class="paso" type="button" data-paso="3">
+      <span class="paso-num">3</span><span>Generar</span>
+    </button>
+  </nav>
+
+  <main class="contenedor">
+
+    <!-- Paso 1: modulo -->
+    <section class="panel activo" id="paso-1" aria-labelledby="t-paso-1">
+      <div class="tarjeta">
+        <h2 id="t-paso-1">Módulo en PDF</h2>
+        <p class="ayuda">Selecciona el PDF de la unidad. Si se llama <em>Modulo 2.pdf</em>, la unidad se detecta sola.</p>
+
+        <button class="dropzone" id="dropzone" type="button">
+          <span class="dz-titulo" id="dz-titulo">Elegir PDF del módulo</span>
+          <span class="dz-sub" id="dz-sub">Haz clic para buscar el archivo</span>
+        </button>
+
+        <div class="fila-campos">
+          <label class="campo corto">
+            <span>Unidad</span>
+            <input id="unidad" type="number" min="1" max="30" value="1">
+          </label>
+          <label class="campo">
+            <span>Materia</span>
+            <input id="materia" type="text">
+          </label>
+        </div>
+
+        <div class="acciones">
+          <button id="btn-extraer" class="btn btn-primario" type="button" disabled>Extraer texto</button>
+          <span class="ayuda" id="extraer-info"></span>
+        </div>
+      </div>
+
+      <div class="tarjeta" id="tarjeta-vista" hidden>
+        <div class="cabecera-tarjeta">
+          <h2>Vista previa</h2>
+          <span class="chip" id="chip-ocr" hidden>OCR</span>
+        </div>
+        <p class="ayuda" id="vista-resumen"></p>
+        <pre class="vista" id="vista-texto"></pre>
+        <div class="acciones">
+          <button class="btn btn-primario" type="button" data-ir="2">Continuar: revisar contenido &rarr;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Paso 2: contenido -->
+    <section class="panel" id="paso-2" aria-labelledby="t-paso-2">
+      <div class="tarjeta barra-acciones">
+        <div>
+          <h2 id="t-paso-2">Contenido del protocolo</h2>
+          <p class="ayuda">Redacta con IA o completa a mano. Revisa antes de generar.</p>
+        </div>
+        <div class="grupo-botones">
+          <button id="btn-redactar" class="btn btn-primario" type="button">Redactar con IA</button>
+          <button id="btn-cargar-json" class="btn btn-secundario" type="button">Cargar JSON</button>
+          <button id="btn-guardar-json" class="btn btn-secundario" type="button">Guardar JSON</button>
+          <button id="btn-vaciar" class="btn btn-peligro" type="button">Vaciar</button>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="campo">
+          <label for="descripcion">Descripción del texto</label>
+          <textarea id="descripcion" rows="3" placeholder="El siguiente protocolo trata sobre…"></textarea>
+        </div>
+        <div class="campo">
+          <label for="palabras">Palabras clave <span class="ayuda">(separadas por comas)</span></label>
+          <input id="palabras" type="text">
+        </div>
+
+        <div class="campo">
+          <div class="cabecera-campo">
+            <span class="etiqueta">Objetivos de las lecturas</span>
+            <span class="chip" id="chip-objetivos">0 / 3</span>
+          </div>
+          <div id="lista-objetivos" class="lista-objetivos"></div>
+        </div>
+      </div>
+
+      <div class="tarjeta">
+        <div class="cabecera-campo">
+          <span class="etiqueta">Conceptos clave y definiciones</span>
+          <span class="chip" id="chip-conceptos">0 / 8–12</span>
+        </div>
+        <div class="tabla-conceptos" id="tabla-conceptos" role="table" aria-label="Conceptos clave"></div>
+        <button id="btn-add-concepto" class="btn btn-fantasma" type="button">+ Añadir concepto</button>
+      </div>
+
+      <div class="tarjeta">
+        <div class="cabecera-campo">
+          <span class="etiqueta">Resumen de las lecturas</span>
+          <span class="chip" id="chip-resumen">0 / 3</span>
+        </div>
+        <div id="lista-resumen" class="lista-resumen"></div>
+        <button id="btn-add-seccion" class="btn btn-fantasma" type="button">+ Añadir sección</button>
+      </div>
+
+      <div class="tarjeta">
+        <div class="campo">
+          <label for="conclusiones">Conclusiones de la lectura</label>
+          <textarea id="conclusiones" rows="3"></textarea>
+        </div>
+        <div class="campo">
+          <label for="bibliografia">Bibliografía <span class="ayuda">(una fuente por línea, máx. 5)</span></label>
+          <textarea id="bibliografia" rows="4"></textarea>
+        </div>
+      </div>
+
+      <div class="acciones-pie">
+        <button class="btn btn-secundario" type="button" data-ir="1">&larr; Módulo</button>
+        <button class="btn btn-primario" type="button" data-ir="3">Continuar: generar &rarr;</button>
+      </div>
+    </section>
+
+    <!-- Paso 3: generar -->
+    <section class="panel" id="paso-3" aria-labelledby="t-paso-3">
+      <div class="tarjeta">
+        <h2 id="t-paso-3">Configuración de la IA</h2>
+        <p class="ayuda">Opcional si ya redactaste el contenido a mano. <strong>auto</strong> usa la clave del entorno o la guardada aquí.</p>
+
+        <div class="fila-campos">
+          <label class="campo">
+            <span>Proveedor</span>
+            <select id="proveedor"></select>
+          </label>
+          <label class="campo">
+            <span>Modelo</span>
+            <input id="modelo" type="text" placeholder="Se usa el modelo por defecto">
+          </label>
+          <div class="campo">
+            <span class="etiqueta-invisible">Modelos</span>
+            <button id="btn-modelos" class="btn btn-secundario" type="button">Ver modelos</button>
+          </div>
+        </div>
+
+        <div class="fila-campos">
+          <label class="campo">
+            <span>Clave API</span>
+            <div class="entrada-con-boton">
+              <input id="clave" type="password" autocomplete="off">
+              <button id="btn-ver-clave" class="btn btn-fantasma" type="button" aria-label="Mostrar u ocultar la clave">Mostrar</button>
+            </div>
+          </label>
+          <label class="campo">
+            <span>URL base <span class="ayuda">(solo personalizado)</span></span>
+            <input id="base-url" type="text" placeholder="https://…/v1">
+          </label>
+        </div>
+
+        <label class="check">
+          <input id="recordar" type="checkbox">
+          <span>Recordar clave en este equipo <span class="ayuda">(se guarda solo en la carpeta del proyecto)</span></span>
+        </label>
+      </div>
+
+      <div class="tarjeta">
+        <div class="cabecera-campo">
+          <h2>Generar protocolo</h2>
+          <span class="chip" id="chip-listo">Revisa el paso 2</span>
+        </div>
+        <div class="grupo-botones">
+          <button id="btn-generar" class="btn btn-primario btn-grande" type="button">Generar DOCX</button>
+          <button id="btn-abrir-salida" class="btn btn-secundario" type="button">Abrir carpeta de salida</button>
+        </div>
+        <div class="registro" id="registro" role="log" aria-live="polite" aria-label="Registro de ejecución"></div>
+        <div class="resultado" id="resultado" hidden>
+          <div>
+            <span class="etiqueta">Documento generado</span>
+            <span class="ayuda" id="resultado-nombre"></span>
+          </div>
+          <button id="btn-abrir-docx" class="btn btn-primario" type="button">Abrir DOCX</button>
+        </div>
+      </div>
+
+      <div class="acciones-pie">
+        <button class="btn btn-secundario" type="button" data-ir="2">&larr; Contenido</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="estado" aria-live="polite">
+    <span id="estado-texto">Listo.</span>
+  </footer>
+
+  <div class="toasts" id="toasts" aria-live="assertive"></div>
+
+  <dialog id="dlg-modelos" class="dialogo">
+    <h2>Modelos disponibles</h2>
+    <p class="ayuda" id="modelos-info"></p>
+    <ul class="lista-modelos" id="lista-modelos"></ul>
+    <div class="acciones">
+      <button id="btn-usar-modelo" class="btn btn-primario" type="button">Usar este modelo</button>
+      <button id="btn-cerrar-modelos" class="btn btn-secundario" type="button">Cerrar</button>
+    </div>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

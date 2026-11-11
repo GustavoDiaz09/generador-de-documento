@@ -20,18 +20,24 @@ def deducir_unidad(fichero: str) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def extraer_pdf(path: str) -> str:
-    """Concatena el texto de todas las paginas del PDF."""
+def extraer_pdf(path: str, avisos: list[str] | None = None) -> str:
+    """Concatena el texto de todas las paginas del PDF.
+
+    Si una pagina no se puede leer se anade un aviso a `avisos` (si se pasa)
+    en vez de descartarla en silencio.
+    """
     try:
         reader = PdfReader(path)
     except Exception as e:
         raise ValueError(f"No se pudo abrir el PDF: {e}") from e
     partes = []
-    for pagina in reader.pages:
+    for n, pagina in enumerate(reader.pages, start=1):
         try:
             texto = pagina.extract_text() or ""
-        except Exception:
+        except Exception as e:
             texto = ""
+            if avisos is not None:
+                avisos.append(f"Página {n} no se pudo leer: {e}")
         partes.append(texto)
     return "\n".join(partes)
 
@@ -83,20 +89,26 @@ def extraer_bibliografia(texto: str) -> list[str]:
         if en_biblio:
             if any(enc in limpia.lower() for enc in ("bibliograf", "index", "contenido")):
                 continue
-            if re.search(r"[A-Za-z]\s*\d{4}", limpia) or "://" in limpia:
+            # Acepta formato APA "Autor (2019)" y "Autor 2019"; antes exigia letra pegada al año.
+            if re.search(r"\b(?:19|20)\d{2}\b", limpia) or "://" in limpia:
                 resultado.append(limpia)
     return resultado
 
 
-def extraer_texto(path: str, tesseract_path: str | None = None) -> tuple[str, bool]:
+def extraer_texto(path: str, tesseract_path: str | None = None,
+                  avisos: list[str] | None = None) -> tuple[str, bool]:
     """Extrae texto con OCR de respaldo si es necesario.
 
-    Devuelve (texto, usado_ocr).
+    Devuelve (texto, usado_ocr). Los problemas no fatales (paginas ilegibles,
+    OCR no disponible) se describen en `avisos` si se pasa la lista.
     """
-    texto = extraer_pdf(path)
+    texto = extraer_pdf(path, avisos)
     if texto_probablemente_inutil(texto):
         try:
             return ocr_pdf(path, tesseract_path), True
-        except Exception:
-            pass
+        except Exception as e:
+            if avisos is not None:
+                avisos.append(
+                    f"El PDF parece escaneado y el OCR falló ({e}). "
+                    "Se usa el texto nativo, que puede estar vacío.")
     return texto, False

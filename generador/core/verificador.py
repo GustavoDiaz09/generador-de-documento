@@ -67,9 +67,3 @@ def verificar(archivo: str, materia: str | None = None) -> list[str]:
             errores.append(f"{parte}: no contiene imagenes (marca de agua/strip).")
 
     return errores
-
-
-def resumen_verificacion(errores: list[str]) -> str:
-    if not errores:
-        return "Verificacion OK: formato del DOCX identico a la plantilla."
-    return "Errores encontrados:\n" + "\n".join(f"  - {e}" for e in errores)

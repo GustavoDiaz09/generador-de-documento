@@ -4,6 +4,7 @@ generador/salida/
 
 # ----- Secretos y config local -----
 generador/.config_ia.json
+generador/.ui.json
 
 # ----- Material de curso (copyright) -----
 *.pdf

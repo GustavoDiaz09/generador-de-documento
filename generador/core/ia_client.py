@@ -7,7 +7,12 @@ import re
 import time
 from collections.abc import Callable
 
-from openai import OpenAI
+from openai import (AuthenticationError, BadRequestError, OpenAI,
+                    PermissionDeniedError)
+
+from .esquema import errores_contenido
+
+TIMEOUT_S = 180  # redactar 8192 tokens puede tardar; el valor por defecto del SDK es 600 s
 
 URLS = {
     "openai": "https://api.openai.com/v1",
@@ -30,16 +35,6 @@ MODELO_POR_DEFECTO = {
     "groq": "llama-3.3-70b-versatile",
     "google": "gemini-3.6-flash",
 }
-
-ESQUEMA_REQUERIDO = [
-    "descripcion",
-    "palabras_claves",
-    "objetivos",
-    "conceptos",
-    "resumen",
-    "conclusiones",
-    "bibliografia",
-]
 
 PROGRESO = Callable[[str], None]
 
@@ -81,13 +76,17 @@ def resolver_credenciales(
       tambien puede venir explicita).
     """
     if proveedor in (None, "", "auto"):
+        proveedor = None
         for nombre in ("openrouter", "openai", "groq", "google"):
             clave = _clave_env(nombre)
             if clave:
                 proveedor = nombre
                 break
-    if proveedor not in (None,) and proveedor not in URLS:
-        proveedor = "openai"  # proveedor desconocido -> endpoint OpenAI por defecto
+    elif proveedor not in URLS and not base_url:
+        # Antes caia en silencio al endpoint de OpenAI y le enviaba la clave.
+        raise ValueError(
+            f"Proveedor desconocido: '{proveedor}'. Usa uno de "
+            f"{', '.join(URLS)} o indica una URL base.")
 
     base = base_url or URLS.get(proveedor, URLS["openai"])
     clave = _clave_env(proveedor) if proveedor else None
@@ -120,7 +119,7 @@ def lista_modelos(
             "Pega tu clave en la pestaña 3."
         )
     try:
-        client = OpenAI(api_key=clave, base_url=base)
+        client = OpenAI(api_key=clave, base_url=base, timeout=TIMEOUT_S)
         return sorted(m.id for m in client.models.list())
     except Exception as e:
         if _proveedor_por_url(base) == "google":
@@ -129,28 +128,34 @@ def lista_modelos(
 
 
 def _lista_modelos_google(clave: str) -> list[str]:
-    """Lista modelos de Gemini con el endpoint nativo de Google."""
-    import json
+    """Lista modelos de Gemini con el endpoint nativo de Google.
+
+    La clave viaja en la cabecera x-goog-api-key, no en la URL, para que no
+    aparezca en logs ni trazas. Los errores de autenticacion no se reintentan.
+    """
+    import urllib.error
     import urllib.request
 
-    nombres: list[str] = []
-    for _intento in range(3):
+    req = urllib.request.Request(
+        "https://generativelanguage.googleapis.com/v1beta/models",
+        headers={"x-goog-api-key": clave})
+    ultimo_error: Exception | None = None
+    for intento in range(3):
         try:
-            url = ("https://generativelanguage.googleapis.com/v1beta/models"
-                   f"?key={clave}")
-            with urllib.request.urlopen(url, timeout=30) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 data = json.loads(r.read().decode("utf-8"))
-            for m in data.get("models", []):
-                nombre = m.get("name", "")
-                if nombre:
-                    nombres.append(nombre.split("/")[-1])
-            return sorted(nombres)
-        except Exception:
-            if _intento < 2:
-                time.sleep(2 ** _intento)
-            else:
+            return sorted(
+                m["name"].split("/")[-1]
+                for m in data.get("models", []) if m.get("name"))
+        except urllib.error.HTTPError as e:
+            if e.code in (401, 403):
                 raise
-    return sorted(nombres)
+            ultimo_error = e
+        except Exception as e:
+            ultimo_error = e
+        if intento < 2:
+            time.sleep(2 ** intento)
+    raise ultimo_error  # type: ignore[misc]
 
 
 def _extract_campos(p: dict) -> str:
@@ -257,20 +262,8 @@ def _solo_fuente(entrada: str) -> str:
 
 
 def validar_esquema(contenido: dict) -> list[str]:
-    """Devuelve errores de cardinalidad/estructura (lista vacia si todo OK)."""
-    errores = []
-    faltantes = [k for k in ESQUEMA_REQUERIDO if k not in contenido]
-    if faltantes:
-        return [f"Faltan campos: {', '.join(faltantes)}"]
-
-    if not isinstance(contenido["objetivos"], list) or len(contenido["objetivos"]) != 3:
-        errores.append("'objetivos' debe tener exactamente 3 elementos.")
-    if not isinstance(contenido["conceptos"], list) or not 8 <= len(contenido["conceptos"]) <= 12:
-        errores.append(f"'conceptos' debe tener 8-12 elementos (tiene "
-                       f"{len(contenido['conceptos'])}).")
-    if not isinstance(contenido["resumen"], list) or len(contenido["resumen"]) != 3:
-        errores.append("'resumen' debe tener exactamente 3 secciones.")
-    return errores
+    """Errores de estructura y cardinalidad (lista vacia si todo OK)."""
+    return errores_contenido(contenido)
 
 
 def _llamar(client: OpenAI, modelo: str, texto: str, biblio: list[str],
@@ -290,15 +283,15 @@ def _llamar(client: OpenAI, modelo: str, texto: str, biblio: list[str],
         kwargs["response_format"] = {"type": "json_object"}
     try:
         respuesta = client.chat.completions.create(**kwargs)
-        return respuesta.choices[0].message.content
-    except Exception as e:
-        if json_mode and "response_format" not in str(e) and "400" in str(e):
-            # algunos proveedores gratuitos rechazan response_format
-            return _llamar(client, modelo, texto, biblio, unidad,
-                           path_plantilla, json_mode=False,
-                           max_tokens=max_tokens, feedback=feedback,
-                           materia=materia)
-        raise e
+    except BadRequestError:
+        if not json_mode:
+            raise
+        # algunos proveedores gratuitos rechazan response_format (HTTP 400)
+        return _llamar(client, modelo, texto, biblio, unidad,
+                       path_plantilla, json_mode=False,
+                       max_tokens=max_tokens, feedback=feedback,
+                       materia=materia)
+    return respuesta.choices[0].message.content
 
 
 def redactar_contenido(
@@ -332,7 +325,7 @@ def redactar_contenido(
             "'Recordar clave'), o define la variable de entorno correspondiente."
         )
 
-    client = OpenAI(api_key=clave, base_url=base)
+    client = OpenAI(api_key=clave, base_url=base, timeout=TIMEOUT_S)
     errores_red = 0
     json_invalido = False
     feedback_json = ""
@@ -350,6 +343,8 @@ def redactar_contenido(
             contenido_raw = _llamar(client, modelo, texto, biblio, unidad,
                                     path_plantilla, max_tokens=tokens,
                                     feedback=feedback_json, materia=materia)
+        except (AuthenticationError, PermissionDeniedError):
+            raise  # clave invalida o sin permisos: reintentar no lo arregla
         except Exception as e:
             status = getattr(e, "status_code", None) or getattr(
                 e, "status", None)

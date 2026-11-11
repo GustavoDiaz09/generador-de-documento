@@ -18,6 +18,8 @@ from pathlib import Path
 from docx import Document
 from docx.oxml.ns import qn
 
+from .esquema import errores_contenido
+
 FILAS = {
     1: "DESCRIPCION DEL TEXTO",
     2: "PALABRAS CLAVES",
@@ -192,20 +194,10 @@ def _cambiar_materia(nueva_celda, materia: str) -> None:
 
 
 def validar_contenido(contenido: dict) -> None:
-    """Valida el esquema minimo antes de ensamblar. Lanza ValueError."""
-    obligatorias = [
-        "descripcion", "palabras_claves", "objetivos", "conceptos",
-        "resumen", "conclusiones", "bibliografia",
-    ]
-    faltantes = [k for k in obligatorias if k not in contenido]
-    if faltantes:
-        raise ValueError(f"Faltan campos en el contenido: {', '.join(faltantes)}")
-    if not isinstance(contenido["objetivos"], list) or not contenido["objetivos"]:
-        raise ValueError("'objetivos' debe ser una lista no vacia.")
-    if not isinstance(contenido["conceptos"], list) or not contenido["conceptos"]:
-        raise ValueError("'conceptos' debe ser una lista no vacia.")
-    if not isinstance(contenido["resumen"], list) or not contenido["resumen"]:
-        raise ValueError("'resumen' debe ser una lista no vacia.")
+    """Valida el contenido antes de ensamblar. Lanza ValueError con todos los errores."""
+    errores = errores_contenido(contenido)
+    if errores:
+        raise ValueError("\n".join(errores))
 
 
 def build_protocol(plantilla: str, contenido: dict, salida: str, unidad: int,

@@ -4,7 +4,7 @@
 
 ![Interfaz](docs/screenshot.png)
 
-Herramienta con interfaz gráfica (Tkinter) que **convierte un PDF de lectura en un documento DOCX con formato idéntico a una plantilla**: extrae el texto del PDF, lo redacta con una IA (o a mano), y lo ensambla clonando fila por fila la plantilla original — así el resultado mantiene tipografía, estilos y numeración exactos.
+Herramienta de escritorio con interfaz web en ventana propia (pywebview, tema claro/oscuro con la identidad de la Universidad de Cartagena) que **convierte un PDF de lectura en un documento DOCX con formato idéntico a una plantilla**: extrae el texto del PDF, lo redacta con una IA (o a mano), y lo ensambla clonando fila por fila la plantilla original — así el resultado mantiene tipografía, estilos y numeración exactos.
 
 Pensado inicialmente para *Protocolos Individuales* universitarios, pero **se adapta a cualquier tipo de documento** (informes, resúmenes, monografías…) cambiando la plantilla — ver [la guía](#guia-hacer-cualquier-tipo-de-documento).
 
@@ -97,12 +97,12 @@ Si tu documento nuevo también cabe en las 7 secciones del formulario (descripci
 
 ### Nivel 2 — Estructura distinta (personalizado)
 
-El generador se adapta tocando 4 puntos (todos en `generador/core/` y `generador/gui.py`):
+El generador se adapta tocando estos puntos (en `generador/core/`, `generador/api.py` y `generador/web/`):
 
 1. **`protocol_builder.py` → dict `FILAS`**: declara tus nombres de fila (clave = número de fila). `build_protocol()` rellena cada celda con `_rellenar(celda(N), ...)` y un *modo* (`texto`, `objetivos`, `conceptos` o `resumen`).
-2. **`ia_client.py` → `_prompt_usuario()`**: define el **esquema JSON** que pedirá a la IA, con las claves que tu documento necesita. La lista `ESQUEMA_REQUERIDO` recoge esas claves.
-3. **`ia_client.py` → `validar_esquema()` y `protocol_builder.py` → `validar_contenido()`**: sincroniza los campos obligatorios con tu nuevo esquema si cambias nombres.
-4. **`gui.py` → pestaña 2**: el formulario está ligado a las 7 claves; para campos nuevos, añade las filas en `_crear_tab_contenido()` y usa el mismo patrón (un `tk.Text` o `ttk.Entry` + lectura/escritura en `_obtener_contenido()` / `_mostrar_contenido()`).
+2. **`ia_client.py` → `_prompt_usuario()`**: define el **esquema JSON** que pedirá a la IA, con las claves que tu documento necesita.
+3. **`core/esquema.py`**: fuente única de verdad. `ESQUEMA_REQUERIDO`, las cardinalidades (objetivos, conceptos, secciones del resumen) y `errores_contenido()` las usan tanto la IA como el formulario manual y el ensamblador.
+4. **`web/index.html` + `web/app.js`**: el formulario está ligado a las claves del esquema; para campos nuevos, añade el control en `index.html`, y actualiza `leerContenido()` y `escribirContenido()` en `app.js`.
 5. **`verificador.py` → `secciones`**: actualiza la lista de títulos esperados (con punto final) para el control de calidad.
 6. **`protocol_builder.py` → `_cambiar_unidad()` (fila 0)**: si tu documento no usa unidades, omite esa llamada o adapta el reemplazo.
 
@@ -120,12 +120,16 @@ Prouni/
 ├── Iniciar_Silencioso.vbs           # Lanzador Windows sin ventana
 ├── Iniciar_Generador.bat            # Lanzador alternativo
 ├── generador/
-│   ├── gui.py                       # Interfaz Tkinter (3 pestañas, hilos en background)
+│   ├── gui.py                       # Lanzador: abre la ventana pywebview
+│   ├── api.py                       # API Python expuesta a la interfaz (hilos + eventos)
+│   ├── web/                         # Interfaz: index.html, styles.css, app.js
 │   ├── requirements.txt
+│   ├── tests/                       # tests unitarios (python -m unittest discover -s tests)
 │   ├── plantilla/Protocolo_Plantilla.docx   # ⭐ plantilla (tu documento de ejemplo)
 │   ├── assets/                      # icono de la app + script que lo genera
 │   ├── salida/                      # DOCX generados (ignorado en git)
 │   └── core/
+│       ├── esquema.py               # esquema del contenido y validación (fuente única)
 │       ├── pdf_utils.py             # extracción de PDF, deducción de unidad, OCR
 │       ├── ia_client.py             # proveedores IA, prompts y validación JSON
 │       ├── protocol_builder.py      # ensamblado DOCX por clonado
